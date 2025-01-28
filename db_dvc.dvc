@@ -1,6 +1,6 @@
 outs:
-- md5: 1481ca23ef375f16d53a4058fd859a87.dir
-  size: 803476587
-  nfiles: 77
+- md5: a9b4a7beb8f181e921ccdfc263bfba46.dir
+  size: 811913953
+  nfiles: 72
   hash: md5
   path: db_dvc
