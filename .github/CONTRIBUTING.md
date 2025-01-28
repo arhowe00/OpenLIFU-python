@@ -3,6 +3,23 @@ description of best practices for developing scientific packages.
 
 [spc-dev-intro]: https://learn.scientific-python.org/development/
 
+You can do
+
+```
+pip install -e .
+```
+
+for an editable install, i.e., the downloaded openlifu is the source doe you are
+using that pytest will always point to.
+
+Or, you can do
+
+```
+pip install .
+```
+
+every single time.
+
 # Commit and pull request expectations
 
 - Every commit should reference the issue number with which it is associated.

@@ -92,7 +92,10 @@ def run_simulation(arr: xdc.Transducer,
                         bli_tolerance=bli_tolerance,
                         upsampling_rate=upsampling_rate)
     medium = get_medium(params)
-    sensor = get_sensor(kgrid, record=['p_max', 'p_min'])
+    sensor = get_sensor(kgrid, record=['p_max', 'p_min'])  # Possibly where
+    # things are hello, my name is nandrewh hello, my name openwater timeline
+    # enough that involving and i'll be get that meeting going if i tried to
+    # I'm happy to join the meeting with matt, one is this is a commercial
     source = get_source(kgrid, karray, source_mat)
     logging.info("Running simulation")
     simulation_options = SimulationOptions(

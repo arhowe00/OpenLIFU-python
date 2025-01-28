@@ -378,6 +378,7 @@ class Solution:
         Returns: The new Solution object.
         """
         solution_dict = json.loads(json_string)
+        # remember to grep created_on in the db
         solution_dict["date_created"] = datetime.fromisoformat(solution_dict["date_created"])
         if solution_dict["delays"] is not None:
             solution_dict["delays"] = np.array(solution_dict["delays"])

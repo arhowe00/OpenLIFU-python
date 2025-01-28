@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import List
 
 from openlifu.bf import focal_patterns
 from openlifu.geo import Point
@@ -16,7 +17,7 @@ class FocalPattern(ABC):
     units: str = "Pa"
 
     @abstractmethod
-    def get_targets(self, target: Point):
+    def get_targets(self, target: Point) -> List[Point]:
         """
         Get the targets of the focal pattern
 

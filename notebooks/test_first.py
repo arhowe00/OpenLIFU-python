@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.16.4
+#       jupytext_version: 1.16.6
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -41,7 +41,7 @@ import openlifu
 
 # %%
 arr = openlifu.Transducer.gen_matrix_array(nx=8, ny=8, pitch=4, kerf=.5, units="mm", impulse_response=1e5)
-arr.draw()
+#arr.draw()
 
 # %% [markdown]
 # Now we'll define the pulse and sequence parameters, the simulation setup, and generate a Protocol.
