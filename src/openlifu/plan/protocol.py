@@ -204,7 +204,7 @@ class Protocol:
         analysis_options: SolutionAnalysisOptions | None = None,
         on_pulse_mismatch: OnPulseMismatchAction = OnPulseMismatchAction.ERROR,
         use_gpu: bool | None = None,
-    ) -> Tuple[Solution, xa.DataArray, SolutionAnalysis]:
+    ) -> Tuple[Solution, xa.Dataset | None, SolutionAnalysis | None]:
         """Calculate the solution and aggregated k-wave simulation outputs.
 
         Method that computes the delays and apodizations for each focus in the treatment plan,
@@ -258,7 +258,7 @@ class Protocol:
         apodizations_to_stack: List[np.ndarray] = []
         simulation_outputs_to_stack: List[xa.Dataset] = []
         simulation_output_stacked: xa.Dataset = xa.Dataset()
-        simulation_result_aggregated: xa.Dataset = xa.Dataset()
+        simulation_result_aggregated: xa.Dataset | None = xa.Dataset()
         scaled_solution_analysis: SolutionAnalysis = SolutionAnalysis()
         foci: List[Point] = self.focal_pattern.get_targets(target)
         simulation_cycles = np.min([np.round(self.pulse.duration * self.pulse.frequency), 20])
