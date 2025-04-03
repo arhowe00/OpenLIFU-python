@@ -99,7 +99,7 @@ class Solution:
     def analyze(self,
                 transducer: Transducer,
                 options: SolutionAnalysisOptions = SolutionAnalysisOptions(),
-                param_constraints: Dict[str,ParameterConstraint] = {}) -> SolutionAnalysis:
+                param_constraints: Dict[str,ParameterConstraint] | None = None) -> SolutionAnalysis:
         """Analyzes the treatment solution.
 
         Args:
@@ -108,6 +108,9 @@ class Solution:
 
         Returns: A struct containing the results of the analysis.
         """
+        # Avoid using a mutable default argument ({}); it can lead to unexpected shared state across function calls. Use None and initialize inside the function instead.
+        if param_constraints is None:
+            param_constraints = {}
         solution_analysis = SolutionAnalysis()
 
         if transducer.id != self.transducer_id:

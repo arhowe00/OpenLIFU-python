@@ -8,11 +8,14 @@ import numpy as np
 import pandas as pd
 import xarray as xa
 
+from openlifu.plan.param_constraint import PARAM_STATUS_SYMBOLS, ParameterConstraint
 from openlifu.util.annotations import OpenLIFUFieldData
 from openlifu.util.dict_conversion import DictMixin
 
 DEFAULT_ORIGIN = np.zeros(3)
 
+# We might have some redundancies here to fix later, but it should be easy to
+# resolve these things
 PARAM_FORMATS = {
     "mainlobe_pnp_MPa": ["max", "0.3f", "MPa", "Mainlobe Peak Negative Pressure"],
     "mainlobe_isppa_Wcm2": ["max", "0.3f", "W/cm^2", "Mainlobe I_SPPA"],
@@ -100,6 +103,9 @@ class SolutionAnalysis(DictMixin):
             if p not in PARAM_FORMATS:
                 raise ValueError(f"Unknown parameter constraint for '{p}'. Must be one of: {list(PARAM_FORMATS.keys())}")
         for param, fmt in PARAM_FORMATS.items():
+            # COMMENT: you need to bind these variables
+            value_by_focus = None
+            agg_value = None
             if fmt[0] is None:
                 value_by_focus = None
                 agg_value = self.__dict__[param]

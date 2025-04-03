@@ -1,0 +1,188 @@
+diff --git a/db_dvc.dvc b/db_dvc.dvc
+index 9862fea..f661a56 100644
+--- a/db_dvc.dvc
++++ b/db_dvc.dvc
+@@ -1,6 +1,6 @@
+ outs:
+-- md5: 4e002abfa508c89a5c7afdff8c3c61a1.dir
++- md5: b61cbb96c629b2ea7130c5a06166975e.dir
+   nfiles: 257
+   hash: md5
+   path: db_dvc
+-  size: 933884330
++  size: 933883287
+diff --git a/notebooks/test_solution_analysis.py b/notebooks/test_solution_analysis.py
+index 50e467b..239c91e 100644
+--- a/notebooks/test_solution_analysis.py
++++ b/notebooks/test_solution_analysis.py
+@@ -13,6 +13,8 @@
+ # ---
+ from __future__ import annotations
+
++import numpy as np
++
+ from openlifu.bf import Pulse, Sequence, apod_methods, focal_patterns
+ from openlifu.geo import Point
+ from openlifu.plan import Protocol
+@@ -27,7 +29,7 @@ sequence = Sequence(pulse_interval=0.1, pulse_count=9, pulse_train_interval=0, p
+ focal_pattern = focal_patterns.SinglePoint(target_pressure=1.2e6)
+ focal_pattern = focal_patterns.Wheel(center=False, spoke_radius=5, num_spokes=3, target_pressure=1.2e6)
+ apod_method = apod_methods.MaxAngle(30)
+-sim_setup = SimSetup(x_extent=[-30,30], y_extent=[-30,30], z_extent=[-4,70])
++sim_setup = SimSetup(x_extent=(-30,30), y_extent=(-30,30), z_extent=(-4,70))
+ protocol = Protocol(
+     id='test_protocol',
+     name='Test Protocol',
+@@ -37,7 +39,8 @@ protocol = Protocol(
+     apod_method=apod_method,
+     sim_setup=sim_setup)
+
+-target = Point(position=(0,0,50), units="mm", radius=2)
++target = Point(position=np.array([0, 0, 50]), units="mm", radius=2)
++# You can't assign kerf as 0.5 because it's an int
+ trans = Transducer.gen_matrix_array(nx=8, ny=8, pitch=4, kerf=0.5, id="m3", name="openlifu", impulse_response=1e6/10)
+ # -
+
+@@ -48,7 +51,8 @@ solution, sim_res, scaled_analysis = protocol.calc_solution(
+     scale=True)
+
+ pc = {"MI":ParameterConstraint('<', 1.8, 1.85), "TIC":ParameterConstraint('<', 2.0), 'global_isppa_Wcm2':ParameterConstraint('within', error_value=(49, 190))}
+-scaled_analysis.to_table(constraints=pc).set_index('Param')[['Value', 'Units', 'Status']]
++if scaled_analysis is not None:
++    scaled_analysis.to_table(constraints=pc).set_index('Param')[['Value', 'Units', 'Status']]
+
+ protocol = Protocol.from_file('../tests/resources/example_db/protocols/example_protocol/example_protocol.json')
+ solution, sim_res, analysis = protocol.calc_solution(
+@@ -56,4 +60,5 @@ solution, sim_res, analysis = protocol.calc_solution(
+     transducer=trans,
+     simulate=True,
+     scale=True)
+-analysis.to_table().set_index('Param')[['Value', 'Units', 'Status']]
++if analysis is not None:
++    analysis.to_table().set_index('Param')[['Value', 'Units', 'Status']]
+diff --git a/src/openlifu/plan/param_constraint.py b/src/openlifu/plan/param_constraint.py
+index 76df906..3f6eb8d 100644
+--- a/src/openlifu/plan/param_constraint.py
++++ b/src/openlifu/plan/param_constraint.py
+@@ -3,8 +3,8 @@ from __future__ import annotations
+ from dataclasses import dataclass
+ from typing import Annotated, Literal, Tuple
+
+-from openlifu.util.dict_conversion import DictMixin
+ from openlifu.util.annotations import OpenLIFUFieldData
++from openlifu.util.dict_conversion import DictMixin
+
+ PARAM_STATUS_SYMBOLS = {
+     "ok": "✅",
+@@ -27,13 +27,19 @@ class ParameterConstraint(DictMixin):
+         if self.warning_value is None and self.error_value is None:
+             raise ValueError("At least one of warning_value or error_value must be set")
+         if self.operator in ['within','inside','outside','outside_inclusive']:
+-            if self.warning_value is not None:
+-                if not isinstance(self.warning_value, tuple) or len(self.warning_value) != 2 or (self.warning_value[0] >= self.warning_value[1]):
+-                    raise ValueError("Warning value must be a sorted tuple of two numbers")
++            if self.warning_value is not None and (
++                not isinstance(self.warning_value, tuple) or
++                len(self.warning_value) != 2 or
++                self.warning_value[0] >= self.warning_value[1]
++            ):
++                raise ValueError("Warning value must be a sorted tuple of two numbers")
+
+-            if self.error_value is not None:
+-                if not isinstance(self.error_value, tuple) or len(self.error_value) != 2 or not (self.error_value[0] >= self.error_value[1]):
+-                    raise ValueError("Error value must be a sorted tuple of two numbers")
++            if self.error_value is not None and (
++                not isinstance(self.error_value, tuple) or
++                len(self.error_value) != 2 or
++                self.error_value[0] >= self.error_value[1]
++            ):
++                raise ValueError("Error value must be a sorted tuple of two numbers")
+         elif self.operator in ['<','<=','>','>=']:
+             if self.warning_value is not None and not isinstance(self.warning_value, (int, float)):
+                 raise ValueError("Warning value must be a single value")
+diff --git a/src/openlifu/plan/protocol.py b/src/openlifu/plan/protocol.py
+index 222b219..41da968 100644
+--- a/src/openlifu/plan/protocol.py
++++ b/src/openlifu/plan/protocol.py
+@@ -206,7 +206,7 @@ class Protocol:
+         analysis_options: SolutionAnalysisOptions | None = None,
+         on_pulse_mismatch: OnPulseMismatchAction = OnPulseMismatchAction.ERROR,
+         use_gpu: bool | None = None,
+-    ) -> Tuple[Solution, xa.DataArray, SolutionAnalysis]:
++    ) -> Tuple[Solution, xa.Dataset | None, SolutionAnalysis | None]:
+         """Calculate the solution and aggregated k-wave simulation outputs.
+
+         Method that computes the delays and apodizations for each focus in the treatment plan,
+@@ -260,7 +260,7 @@ class Protocol:
+         apodizations_to_stack: List[np.ndarray] = []
+         simulation_outputs_to_stack: List[xa.Dataset] = []
+         simulation_output_stacked: xa.Dataset = xa.Dataset()
+-        simulation_result_aggregated: xa.Dataset = xa.Dataset()
++        simulation_result_aggregated: xa.Dataset | None = xa.Dataset()
+         scaled_solution_analysis: SolutionAnalysis = SolutionAnalysis()
+         foci: List[Point] = self.focal_pattern.get_targets(target)
+         simulation_cycles = np.min([np.round(self.pulse.duration * self.pulse.frequency), 20])
+diff --git a/src/openlifu/plan/solution.py b/src/openlifu/plan/solution.py
+index dd9bb20..d170c8b 100644
+--- a/src/openlifu/plan/solution.py
++++ b/src/openlifu/plan/solution.py
+@@ -99,7 +99,7 @@ class Solution:
+     def analyze(self,
+                 transducer: Transducer,
+                 options: SolutionAnalysisOptions = SolutionAnalysisOptions(),
+-                param_constraints: Dict[str,ParameterConstraint] = {}) -> SolutionAnalysis:
++                param_constraints: Dict[str,ParameterConstraint] | None = None) -> SolutionAnalysis:
+         """Analyzes the treatment solution.
+
+         Args:
+@@ -108,6 +108,9 @@ class Solution:
+
+         Returns: A struct containing the results of the analysis.
+         """
++        # Avoid using a mutable default argument ({}); it can lead to unexpected shared state across function calls. Use None and initialize inside the function instead.
++        if param_constraints is None:
++            param_constraints = {}
+         solution_analysis = SolutionAnalysis()
+
+         if transducer.id != self.transducer_id:
+diff --git a/src/openlifu/plan/solution_analysis.py b/src/openlifu/plan/solution_analysis.py
+index 6286cf3..675b3b7 100644
+--- a/src/openlifu/plan/solution_analysis.py
++++ b/src/openlifu/plan/solution_analysis.py
+@@ -8,11 +8,14 @@ import numpy as np
+ import pandas as pd
+ import xarray as xa
+
++from openlifu.plan.param_constraint import PARAM_STATUS_SYMBOLS, ParameterConstraint
+ from openlifu.util.annotations import OpenLIFUFieldData
+ from openlifu.util.dict_conversion import DictMixin
+
+ DEFAULT_ORIGIN = np.zeros(3)
+
++# We might have some redundancies here to fix later, but it should be easy to
++# resolve these things
+ PARAM_FORMATS = {
+     "mainlobe_pnp_MPa": ["max", "0.3f", "MPa", "Mainlobe Peak Negative Pressure"],
+     "mainlobe_isppa_Wcm2": ["max", "0.3f", "W/cm^2", "Mainlobe I_SPPA"],
+@@ -100,6 +103,9 @@ class SolutionAnalysis(DictMixin):
+             if p not in PARAM_FORMATS:
+                 raise ValueError(f"Unknown parameter constraint for '{p}'. Must be one of: {list(PARAM_FORMATS.keys())}")
+         for param, fmt in PARAM_FORMATS.items():
++            # COMMENT: you need to bind these variables
++            value_by_focus = None
++            agg_value = None
+             if fmt[0] is None:
+                 value_by_focus = None
+                 agg_value = self.__dict__[param]
+diff --git a/tests/test_solution.py b/tests/test_solution.py
+index 99550b7..8b506d2 100644
+--- a/tests/test_solution.py
++++ b/tests/test_solution.py
+@@ -20,6 +20,7 @@ def example_transducer() -> Transducer:
+     return Transducer(
+         id="trans_456",
+         name="Test Transducer",
++        # I'm getting a type mismatch here. Currently, elements is a Tuple of a single Element. I think you should change it to a list of elements, but I don't know if this will affect the codebase in many places (@ebrahimebrahim, any thoughts?); TODO: fix
+         elements=[
+             Element(index=1, x=-14, y=-14, units="m"),
+             Element(index=2, x=-2, y=-2, units="m"),

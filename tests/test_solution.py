@@ -20,6 +20,7 @@ def example_transducer() -> Transducer:
     return Transducer(
         id="trans_456",
         name="Test Transducer",
+        # I'm getting a type mismatch here. Currently, elements is a Tuple of a single Element. I think you should change it to a list of elements, but I don't know if this will affect the codebase in many places (@ebrahimebrahim, any thoughts?); TODO: fix
         elements=[
             Element(index=1, x=-14, y=-14, units="m"),
             Element(index=2, x=-2, y=-2, units="m"),
